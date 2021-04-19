@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.squareup.wire
+package com.squareup.wire.legacy
 
 import com.google.gson.Gson
 import com.google.gson.JsonElement
@@ -22,23 +22,44 @@ import com.google.gson.reflect.TypeToken
 import com.google.gson.stream.JsonReader
 import com.google.gson.stream.JsonToken
 import com.google.gson.stream.JsonWriter
+import com.squareup.wire.Message
+import com.squareup.wire.Message.Builder
+import com.squareup.wire.ProtoAdapter
+import com.squareup.wire.WireField
 import com.squareup.wire.WireField.Label
-import com.squareup.wire.internal.FieldBinding
-import com.squareup.wire.internal.RuntimeMessageAdapter
 import java.io.IOException
 import java.math.BigInteger
 
 // 2^64, used to convert sint64 values >= 2^63 to unsigned decimal form
 private val POWER_64 = BigInteger("18446744073709551616")
 
-internal class MessageTypeAdapter<M : Message<M, B>, B : Message.Builder<M, B>>(
+internal class MessageTypeAdapter<M : Message<M, B>, B : Builder<M, B>>(
   private val gson: Gson,
   type: TypeToken<M>
 ) : TypeAdapter<M>() {
-  private val messageAdapter: RuntimeMessageAdapter<M, B> =
-      RuntimeMessageAdapter.create(type.rawType as Class<M>)
-  private val fieldBindings: Map<String, FieldBinding<M, B>> =
-      messageAdapter.fieldBindings.values.associateBy { it.name }
+  private val messageType = type.rawType as Class<M>
+
+  private val builderType: Class<B> = run {
+    try {
+      return@run Class.forName("${messageType.name}\$Builder") as Class<B>
+    } catch (_: ClassNotFoundException) {
+      throw IllegalArgumentException(
+        "No builder class found for message type ${messageType.name}")
+    }
+  }
+
+  private val fieldBindings: Map<String, FieldBinding<M, B>> = run {
+    val map = mutableMapOf<String, FieldBinding<M, B>>()
+
+    // Create tag bindings for fields annotated with '@WireField'
+    for (messageField in messageType.declaredFields) {
+      val wireField = messageField.getAnnotation(WireField::class.java)
+      if (wireField != null) {
+        map[messageField.name] = FieldBinding(wireField, messageField, builderType)
+      }
+    }
+    return@run map
+  }
 
   @Throws(IOException::class)
   override fun write(out: JsonWriter, message: M?) {
@@ -48,7 +69,7 @@ internal class MessageTypeAdapter<M : Message<M, B>, B : Message.Builder<M, B>>(
     }
 
     out.beginObject()
-    for (tagBinding in messageAdapter.fieldBindings.values) {
+    for (tagBinding in fieldBindings.values) {
       val value = tagBinding[message] ?: continue
       out.name(tagBinding.name)
       emitJson(out, value, tagBinding.singleAdapter(), tagBinding.label)
@@ -90,7 +111,7 @@ internal class MessageTypeAdapter<M : Message<M, B>, B : Message.Builder<M, B>>(
     }
 
     val elementAdapter = gson.getAdapter(JsonElement::class.java)
-    val builder = messageAdapter.newBuilder()
+    val builder = builderType.newInstance()
 
     input.beginObject()
     while (input.peek() != JsonToken.END_OBJECT) {

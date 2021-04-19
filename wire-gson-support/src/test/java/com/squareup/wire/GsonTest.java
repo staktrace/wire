@@ -17,6 +17,7 @@ package com.squareup.wire;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.squareup.wire.legacy.WireTypeAdapterFactory;
 import com.squareup.wire.protos.RepeatedPackedAndMap;
 import com.squareup.wire.protos.alltypes.AllTypes;
 import java.util.Arrays;
