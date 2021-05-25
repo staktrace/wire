@@ -17,6 +17,8 @@ package com.squareup.wire.reflector
 
 import com.squareup.wire.GrpcStatus
 import com.squareup.wire.schema.Location
+import com.squareup.wire.schema.MessageType
+import com.squareup.wire.schema.ProtoMember
 import com.squareup.wire.schema.Schema
 import com.squareup.wire.schema.internal.SchemaEncoder
 import grpc.reflection.v1alpha.ErrorResponse
@@ -85,37 +87,42 @@ class SchemaReflector(
   private fun fileContainingSymbol(file_containing_symbol: String): ServerReflectionResponse {
     val symbol = file_containing_symbol.removePrefix(".")
 
-    val service = schema.getService(symbol)
-
-    // TODO(juliaogris): Happy path to the left
-    val location: Location
-    if (service != null) {
-      location = service.location
-    } else {
-      val type = schema.getType(symbol)
-      if (type != null) {
-        location = type.location
-      } else {
-        val fullServiceName = symbol.substringBeforeLast(".")
-        val serviceWithMethod = schema.getService(fullServiceName)
-        if (serviceWithMethod != null) {
-          location = serviceWithMethod.location
-        } else {
-          return ServerReflectionResponse(
-            error_response = ErrorResponse(
-              error_code = GrpcStatus.NOT_FOUND.code,
-              "unknown symbol: $file_containing_symbol"
-            )
-          )
-        }
-      }
-    }
+    val location = location(symbol)
+      ?: return ServerReflectionResponse(
+        error_response = ErrorResponse(
+          error_code = GrpcStatus.NOT_FOUND.code,
+          "unknown symbol: $file_containing_symbol"
+        )
+      )
 
     val protoFile = schema.protoFile(location.path)!!
     val result = SchemaEncoder(schema).encode(protoFile).toFileDescriptorResponse()
     return ServerReflectionResponse(
       file_descriptor_response = result
     )
+  }
+
+  private fun location(symbol: String): Location? {
+    val service = schema.getService(symbol)
+    if (service != null) return service.location
+
+    val type = schema.getType(symbol)
+    if (type != null) return type.location
+
+    val beforeLastDotName = symbol.substringBeforeLast(".")
+    val afterLastDot = symbol.substring(beforeLastDotName.length + 1)
+
+    val serviceWithMethod = schema.getService(beforeLastDotName)
+    if (serviceWithMethod?.rpc(afterLastDot) != null) return serviceWithMethod.location
+
+    val extend = schema.protoFiles
+      .filter { it.packageName == beforeLastDotName }
+      .flatMap { it.extendList }
+      .flatMap { it.fields }
+      .firstOrNull { it.name == afterLastDot }
+    if (extend != null) return extend.location
+
+    return null
   }
 
   private fun ByteString.toFileDescriptorResponse(): FileDescriptorResponse {
