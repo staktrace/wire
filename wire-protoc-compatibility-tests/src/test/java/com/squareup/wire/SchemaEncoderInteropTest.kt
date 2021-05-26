@@ -21,7 +21,6 @@ import com.squareup.wire.schema.Location
 import com.squareup.wire.schema.ProtoFile
 import com.squareup.wire.schema.SchemaLoader
 import com.squareup.wire.schema.internal.SchemaEncoder
-import com.squareup.wire.testing.UnwantedValueStripper
 import java.nio.file.FileSystems
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.Test
