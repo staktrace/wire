@@ -49,7 +49,7 @@ import kotlin.jvm.JvmName
  */
 class ProtoReader(private val source: BufferedSource) {
   /** The current position in the input source, starting at 0 and increasing monotonically. */
-  private var pos: Long = 0
+  internal var pos: Long = 0
   /** The absolute position of the end of the current message. */
   private var limit = Long.MAX_VALUE
   /** The current number of levels of message nesting. */
@@ -445,6 +445,11 @@ class ProtoReader(private val source: BufferedSource) {
     val protoAdapter = fieldEncoding.rawProtoAdapter()
     @Suppress("UNCHECKED_CAST") // We encode and decode the same types.
     (protoAdapter as ProtoAdapter<Any>).encodeWithTag(unknownFieldsWriter, tag, value)
+  }
+
+  /** YOLO */
+  internal fun move(pos: Long): {
+    this.pos = pos
   }
 
   companion object {
