@@ -1,0 +1,22 @@
+plugins {
+  id 'org.jetbrains.kotlin.jvm'
+  id 'com.squareup.wire'
+}
+
+// The code in this test project should be identical to
+// the one in cache-include-paths-2; the only difference is
+// that the set of included files is different. This tests
+// that variance in the include directive is included in
+// the cache key for the wire task, so that if the set of
+// includes changes, the wire task doesn't reuse a cached
+// result with a different set of includes.
+
+wire {
+  sourcePath {
+    srcJar("src/main/proto/protos.jar")
+    include("squareup/geology/period.proto")
+  }
+
+  kotlin {
+  }
+}

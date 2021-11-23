@@ -1130,6 +1130,51 @@ class WirePluginTest {
     buildCacheDir.deleteRecursively()
   }
 
+  @Test
+  fun cacheKeyIncludePaths() {
+    // Remove the build cache folder if it is leftover from a previous run
+    val buildCacheDir = File("src/test/projects/.cache-include-paths-build-cache")
+    if (buildCacheDir.exists()) {
+        buildCacheDir.deleteRecursively()
+    }
+    assertThat(buildCacheDir.exists()).isFalse
+
+    val generatedPeriodProto = "build/generated/source/wire/com/squareup/geology/Period.kt"
+    val generatedDinosaurProto = "build/generated/source/wire/com/squareup/dinosaurs/Dinosaur.kt"
+
+    val fixtureRoot = File("src/test/projects/cache-include-paths-1")
+    val result = gradleRunner.runFixture(fixtureRoot) {
+        withArguments("generateProtos", "--build-cache", "--stacktrace", "--info").build()
+    }
+
+    assertThat(result.task(":generateProtos")).isNotNull
+    assertThat(result.output).contains("Writing com.squareup.geology.Period")
+    assertThat(result.task(":generateMainProtos")?.outcome).isEqualTo(TaskOutcome.SUCCESS)
+    assertThat(result.task(":generateProtos")?.outcome).isEqualTo(TaskOutcome.SUCCESS)
+    assertThat(File(fixtureRoot, generatedPeriodProto)).exists()
+    assertThat(File(fixtureRoot, generatedDinosaurProto)).doesNotExist()
+
+    // After the first project, the build cache should exist. It should NOT get used for the second
+    // project, because the set of included files is different.
+    assertThat(buildCacheDir.exists()).isTrue
+
+    val modifiedFixtureRoot = File("src/test/projects/cache-include-paths-2")
+    val modifiedResult = gradleRunner.runFixture(modifiedFixtureRoot) {
+        withArguments("generateProtos", "--build-cache", "--stacktrace", "--info").build()
+    }
+
+    assertThat(modifiedResult.task(":generateProtos")).isNotNull
+    assertThat(modifiedResult.output).contains("Writing com.squareup.geology.Period")
+    assertThat(modifiedResult.output).contains("Writing com.squareup.dinosaurs.Dinosaur")
+    assertThat(modifiedResult.task(":generateMainProtos")?.outcome).isEqualTo(TaskOutcome.SUCCESS)
+    assertThat(modifiedResult.task(":generateProtos")?.outcome).isEqualTo(TaskOutcome.SUCCESS)
+    assertThat(File(modifiedFixtureRoot, generatedPeriodProto)).exists()
+    assertThat(File(modifiedFixtureRoot, generatedDinosaurProto)).exists()
+
+    // Clean up on success; leave the dir on failure for easier debugging.
+    buildCacheDir.deleteRecursively()
+  }
+
   private fun GradleRunner.runFixture(
     root: File,
     action: GradleRunner.() -> BuildResult
