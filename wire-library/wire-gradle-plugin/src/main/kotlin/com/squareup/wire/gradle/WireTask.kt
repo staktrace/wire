@@ -139,8 +139,8 @@ abstract class WireTask @Inject constructor(objects: ObjectFactory) : SourceTask
 
     val allTargets = targets.get()
     val wireRun = WireRun(
-      sourcePath = sourceInput.get().map { Location.get(it.base, it.path) },
-      protoPath = protoInput.get().map { Location.get(it.base, it.path) },
+      sourcePath = sourceInput.get().map { it.resolveWith(projectDirProperty.getAsFile().get()) },
+      protoPath = protoInput.get().map { it.resolveWith(projectDirProperty.getAsFile().get()) },
       treeShakingRoots = roots.get().ifEmpty { includes },
       treeShakingRubbish = prunes.get().ifEmpty { excludes },
       moves = moves.get().map { it.toTypeMoverMove() },

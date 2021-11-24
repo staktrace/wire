@@ -157,20 +157,21 @@ internal class WireInput(var configuration: Configuration) {
       }
       listOf(
         InputLocation.get(
+          project = project,
           base = srcDir.path,
           path = relativeTo(srcDir).toString()
         )
       )
     } else if (isJar) {
       val filters = dependencyFilters.getOrDefault(dependency, listOf())
-        .ifEmpty { return@toLocations listOf(InputLocation.get(path)) }
+        .ifEmpty { return@toLocations listOf(InputLocation.get(project, path)) }
 
       mutableListOf<InputLocation>().apply {
         project.zipTree(path)
           .matching { pattern -> filters.forEach { it.act(pattern) } }
-          .visit { if (!it.isDirectory) add(InputLocation.get(path, it.path)) }
+          .visit { if (!it.isDirectory) add(InputLocation.get(project, path, it.path)) }
       }
-    } else listOf(InputLocation.get(path))
+    } else listOf(InputLocation.get(project, path))
 
   private val File.isJar
     get() = path.endsWith(".jar")
