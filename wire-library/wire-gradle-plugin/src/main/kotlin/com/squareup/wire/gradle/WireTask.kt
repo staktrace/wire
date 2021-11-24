@@ -49,11 +49,11 @@ abstract class WireTask @Inject constructor(objects: ObjectFactory) : SourceTask
   val pluginVersion: Property<String> = objects.property(String::class.java)
     .convention(VERSION)
 
-  @get:Internal
-  internal abstract val sourceInput: ListProperty<Location>
+  @get:Input
+  internal abstract val sourceInput: ListProperty<InputLocation>
 
-  @get:Internal
-  internal abstract val protoInput: ListProperty<Location>
+  @get:Input
+  internal abstract val protoInput: ListProperty<InputLocation>
 
   @get:Input
   abstract val roots: ListProperty<String>
@@ -139,8 +139,8 @@ abstract class WireTask @Inject constructor(objects: ObjectFactory) : SourceTask
 
     val allTargets = targets.get()
     val wireRun = WireRun(
-      sourcePath = sourceInput.get(),
-      protoPath = protoInput.get(),
+      sourcePath = sourceInput.get().map { Location.get(it.base, it.path) },
+      protoPath = protoInput.get().map { Location.get(it.base, it.path) },
       treeShakingRoots = roots.get().ifEmpty { includes },
       treeShakingRubbish = prunes.get().ifEmpty { excludes },
       moves = moves.get().map { it.toTypeMoverMove() },
