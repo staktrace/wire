@@ -1242,6 +1242,18 @@ class WirePluginTest {
     buildCacheDir.deleteRecursively()
   }
 
+  @Test
+  fun sourceJarsLimitedByRoot() {
+    val fixtureRoot = File("src/test/projects/sourcejar-with-root")
+    val result = gradleRunner.runFixture(fixtureRoot) {
+      withArguments("generateProtos", "--stacktrace", "--info").build()
+    }
+
+    assertThat(result.task(":generateProtos")).isNotNull()
+    assertThat(result.output).contains("Writing com.squareup.geology.Period")
+    assertThat(result.output).doesNotContain("Writing com.squareup.extension.MyOptions")
+  }
+
   private fun GradleRunner.runFixture(
     root: File,
     action: GradleRunner.() -> BuildResult
