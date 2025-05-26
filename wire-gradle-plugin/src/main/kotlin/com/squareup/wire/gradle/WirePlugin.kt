@@ -120,6 +120,7 @@ class WirePlugin : Plugin<Project> {
     val projectDependenciesJvmConfiguration = project.configurations.getByName("protoProjectDependenciesJvm")
 
     val outputs = extension.outputs
+    logger.quiet("Got ${outputs.size} targets: $outputs")
     check(outputs.isNotEmpty()) {
       "At least one target must be provided for project '${project.path}\n" + "See our documentation for details: https://square.github.io/wire/wire_compiler/#customizing-output"
     }
@@ -128,6 +129,7 @@ class WirePlugin : Plugin<Project> {
     check(!hasKotlinOutput || kotlin.get()) {
       "Wire Gradle plugin applied in " + "project '${project.path}' but no supported Kotlin plugin was found"
     }
+    logger.quiet("hasJavaOutput: $hasJavaOutput, hasKotlinOutput: $hasKotlinOutput")
 
     addWireRuntimeDependency(hasJavaOutput, hasKotlinOutput)
 
@@ -151,6 +153,7 @@ class WirePlugin : Plugin<Project> {
       val targets = outputs.map { output ->
         output.toTarget(project.relativePath(output.out ?: source.outputDir(project)))
       }
+      logger.quiet("targets: $targets")
       val generatedSourcesDirectories: Set<File> =
         targets
           // Emitted `.proto` files have a special treatment. Their root should be a resource, not a
@@ -158,6 +161,7 @@ class WirePlugin : Plugin<Project> {
           .filterNot { it is ProtoTarget }
           .map { target -> project.file(target.outDirectory) }
           .toSet()
+      logger.quiet("generatedSourcesDirs: $generatedSourcesDirectories")
 
       // Both the JavaCompile and KotlinCompile tasks might already have been configured by now.
       // Even though we add the Wire output directories into the corresponding sourceSets, the
@@ -213,6 +217,7 @@ class WirePlugin : Plugin<Project> {
               .map(Target::outDirectory),
           )
         }
+        logger.quiet("for task $taskName, outputDirectories is $outputDirectories")
         task.outputDirectories.setFrom(outputDirectories)
         task.protoSourceConfiguration.setFrom(protoSourceConfiguration)
         task.protoPathConfiguration.setFrom(protoPathConfiguration)
@@ -275,6 +280,7 @@ class WirePlugin : Plugin<Project> {
   }
 
   private fun Source.outputDir(project: Project): File {
+    project.logger.quiet("sources: $sources (java=${java.get()}, kotlin=${kotlin.get()})")
     return if (sources.size > 1) {
       File(project.targetDefaultOutputPath(), name)
     } else {
